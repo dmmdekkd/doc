@@ -1,40 +1,42 @@
 #!/usr/bin/env bash
 # =============================================================================
 # jumpbyte-bot Skill 一键安装脚本
-# 将项目的 SKILL.md（权威源 .trae/skills/jumpbyte-bot/）复制到各 IDE / AI Agent
-# 的 skills 目录，让 AI 能立即理解本项目的架构、协议、算法与文档维护方式。
+# 将 SKILL.md（项目 AI 知识包）安装到各 IDE / AI Agent 的 skills 目录，
+# 让 AI 打开项目即可理解架构、协议、算法与文档维护方式。
+#
+# 支持两种运行模式：
+#   [本地模式] 已克隆仓库：
+#     ./scripts/install-skill.sh --all
+#   [远程一键模式] 无需克隆仓库（Linux / macOS / Windows Git-Bash / WSL）：
+#     curl -fsSL https://raw.githubusercontent.com/dmmdekkd/doc/main/scripts/install-skill.sh | bash -s -- --all
+#     bash <(curl -fsSL https://raw.githubusercontent.com/dmmdekkd/doc/main/scripts/install-skill.sh) --all
+#
+#   Windows 原生 PowerShell 请用 install-skill.ps1（同目录 / 同远程 URL）：
+#     irm https://raw.githubusercontent.com/dmmdekkd/doc/main/scripts/install-skill.ps1 | iex
 #
 # 用法：
-#   ./scripts/install-skill.sh              # 自动检测并安装到当前环境（默认全装到可识别的 IDE）
-#   ./scripts/install-skill.sh --all        # 安装到全部支持的目标
-#   ./scripts/install-skill.sh --ide=trae   # 只安装指定 IDE（逗号可多个）
-#   ./scripts/install-skill.sh --list       # 列出支持的目标
-#   ./scripts/install-skill.sh --ide=trae --force
+#   install-skill.sh                # 自动检测并安装
+#   install-skill.sh --all          # 安装到全部支持的目标
+#   install-skill.sh --ide=trae,cursor,claude   # 只安装指定 IDE（逗号分隔）
+#   install-skill.sh --list         # 列出支持的目标与安装位置
+#   install-skill.sh --force        # 强制覆盖已存在的副本
 #
 # 支持目标：trae, cursor, claude, cline, continue, github-copilot
+# 环境变量：SKILL_RAW_URL 覆盖远程 SKILL.md 下载地址（国内可指向镜像/加速源）
 # =============================================================================
 set -euo pipefail
 
 SKILL_NAME="jumpbyte-bot"
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"          # 仓库根（ccmd/ 上级）
-SRC="$ROOT/.trae/skills/$SKILL_NAME/SKILL.md"
-
-# 各 IDE / Agent 的目标目录（相对于仓库根 ROOT）
-declare -A TARGETS=(
-  [trae]=".trae/skills/$SKILL_NAME"
-  [cursor]=".cursor/skills/$SKILL_NAME"
-  [claude]=".claude/skills/$SKILL_NAME"
-  [cline]=".cline/skills/$SKILL_NAME"
-  [continue]=".continue/skills/$SKILL_NAME"
-  [github-copilot]=".github/skills/$SKILL_NAME"
-)
-ORDER=(trae cursor claude cline continue github-copilot)
+REPO="dmmdekkd/doc"
+BRANCH="main"
+DEFAULT_RAW_URL="https://raw.githubusercontent.com/$REPO/$BRANCH/.trae/skills/$SKILL_NAME/SKILL.md"
+RAW_URL="${SKILL_RAW_URL:-$DEFAULT_RAW_URL}"
 
 MODE="auto"
 FORCE=0
 
 usage() {
-  sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 }
 
@@ -50,67 +52,119 @@ for arg in "$@"; do
   esac
 done
 
-if [[ ! -f "$SRC" ]]; then
-  echo "[error] 找不到 Skill 权威源: $SRC"
-  exit 1
+# ---------------------------------------------------------------------------
+# 0. 定位权威源：优先本地仓库，否则远程下载（远程一键模式）
+# ---------------------------------------------------------------------------
+LOCAL_MODE=0
+SRC=""
+ROOT=""
+
+if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+  CAND="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd || true)"
+  if [[ -n "$CAND" && -f "$CAND/.trae/skills/$SKILL_NAME/SKILL.md" ]]; then
+    ROOT="$CAND"; LOCAL_MODE=1
+  fi
 fi
+if [[ "$LOCAL_MODE" -eq 0 && -f ".trae/skills/$SKILL_NAME/SKILL.md" ]]; then
+  ROOT="$(pwd)"; LOCAL_MODE=1
+fi
+
+if [[ "$LOCAL_MODE" -eq 1 ]]; then
+  SRC="$ROOT/.trae/skills/$SKILL_NAME/SKILL.md"
+  echo "[info] 本地模式：使用仓库权威源 $SRC"
+else
+  TMPD="$(mktemp -d 2>/dev/null || echo "${TMPDIR:-/tmp}/skill.$$")"
+  mkdir -p "$TMPD"
+  trap 'rm -rf "$TMPD"' EXIT
+  SRC="$TMPD/SKILL.md"
+  echo "[info] 远程模式：下载 SKILL.md ← $RAW_URL"
+  if ! curl -fsSL --connect-timeout 15 "$RAW_URL" -o "$SRC"; then
+    echo "[error] 远程下载失败: $RAW_URL"
+    echo "        可设置 SKILL_RAW_URL 指定镜像/加速地址后重试，例如："
+    echo "        SKILL_RAW_URL=https://ghproxy.com/$RAW_URL bash <(curl -fsSL https://raw.githubusercontent.com/$REPO/$BRANCH/scripts/install-skill.sh) --all"
+    exit 1
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# 1. 目标目录
+#    本地模式：仓库相对目录（.trae/.cursor/...）
+#    远程模式：用户全局目录（$HOME/.trae/...），对所有项目生效
+# ---------------------------------------------------------------------------
+resolve_dst() {
+  local k="$1"
+  if [[ "$LOCAL_MODE" -eq 1 ]]; then
+    case "$k" in
+      trae)            echo "$ROOT/.trae/skills/$SKILL_NAME" ;;
+      cursor)          echo "$ROOT/.cursor/skills/$SKILL_NAME" ;;
+      claude)          echo "$ROOT/.claude/skills/$SKILL_NAME" ;;
+      cline)           echo "$ROOT/.cline/skills/$SKILL_NAME" ;;
+      continue)        echo "$ROOT/.continue/skills/$SKILL_NAME" ;;
+      github-copilot)  echo "$ROOT/.github/skills/$SKILL_NAME" ;;
+    esac
+  else
+    case "$k" in
+      trae)            echo "$HOME/.trae/skills/$SKILL_NAME" ;;
+      cursor)          echo "$HOME/.cursor/skills/$SKILL_NAME" ;;
+      claude)          echo "$HOME/.claude/skills/$SKILL_NAME" ;;
+      cline)           echo "$HOME/.cline/skills/$SKILL_NAME" ;;
+      continue)        echo "$HOME/.continue/skills/$SKILL_NAME" ;;
+      github-copilot)  echo "$HOME/.github/skills/$SKILL_NAME" ;;
+    esac
+  fi
+}
+
+ORDER=(trae cursor claude cline continue github-copilot)
 
 if [[ "$MODE" = "list" ]]; then
   echo "支持的目标："
   for k in "${ORDER[@]}"; do
-    printf "  %-18s → %s\n" "$k" "${TARGETS[$k]}"
+    printf "  %-18s → %s\n" "$k" "$(resolve_dst "$k")"
   done
   echo "权威源: $SRC"
   exit 0
 fi
 
-# 组装要安装的目标列表
+# ---------------------------------------------------------------------------
+# 2. 组装要安装的目标列表
+# ---------------------------------------------------------------------------
 selected=()
 if [[ "$MODE" = "ide" ]]; then
   for k in ${IDE_ARGS//,/ }; do
-    [[ -n "$k" && -n "${TARGETS[$k]:-}" ]] && selected+=("$k") || echo "[warn] 未知目标: $k"
+    [[ -n "$k" ]] && { case " ${ORDER[*]} " in *" $k "*) selected+=("$k");; *) echo "[warn] 未知目标: $k";; esac; }
   done
 elif [[ "$MODE" = "all" ]]; then
   selected=("${ORDER[@]}")
 else
-  # auto：尽量自动探测当前环境（HOME 下的 Trae/Cursor 全局 skills 也认）
-  auto=()
-  for k in "${ORDER[@]}"; do
-    # 仓库内的技能目录存在（说明对应 IDE 在用本仓库）→ 纳入
-    [[ "${TARGETS[$k]}" = .trae/* ]] && auto+=("$k") && continue
-    if [[ -d "$ROOT/${TARGETS[$k]}" ]]; then auto+=("$k"); fi
-  done
-  # 全局 skills 目录探测（不在仓库内，复制到用户全局，供所有项目复用）
-  for g in "$HOME/.trae/skills" "$HOME/.cursor/skills" "$HOME/.claude/skills"; do
-    [[ -d "$g" ]] && auto+=("$(basename "$g")")
-  done
-  selected=("${auto[@]:-trae}")
-  # 去重
-  selected=($(echo "${selected[@]}" | tr ' ' '\n' | sort -u))
+  # auto：本地模式探测仓库内已存在的 skills 目录（无则默认 trae）；远程模式全装到用户全局
+  if [[ "$LOCAL_MODE" -eq 1 ]]; then
+    auto=()
+    for k in "${ORDER[@]}"; do
+      [[ -d "$(resolve_dst "$k")" ]] && auto+=("$k")
+    done
+    [[ ${#auto[@]} -eq 0 ]] && auto=(trae)
+  else
+    auto=("${ORDER[@]}")
+  fi
+  selected=("${auto[@]}")
 fi
 
 [[ ${#selected[@]} -eq 0 ]] && { echo "[error] 未选择任何目标，使用 --all 或 --ide=xxx"; exit 1; }
 
+# ---------------------------------------------------------------------------
+# 3. 执行安装
+# ---------------------------------------------------------------------------
 installed=0
 for k in "${selected[@]}"; do
-  rel="${TARGETS[$k]}"
-  # 全局目录处理
-  if [[ "$k" = *trae && -d "$HOME/.trae/skills" && "$rel" != .trae/* ]]; then
-    dst="$HOME/.trae/skills/$SKILL_NAME"
-  elif [[ "$k" = *cursor && -d "$HOME/.cursor/skills" ]]; then
-    dst="$HOME/.cursor/skills/$SKILL_NAME"
-  elif [[ "$k" = *claude && -d "$HOME/.claude/skills" ]]; then
-    dst="$HOME/.claude/skills/$SKILL_NAME"
-  else
-    dst="$ROOT/$rel"
-  fi
-  # 目标与权威源相同（如 trae 仓库内目录即权威源）→ 跳过
-  if [[ "$dst/SKILL.md" -ef "$SRC" ]]; then
+  dst="$(resolve_dst "$k")"
+
+  # 目标与权威源相同（本地模式下 trae 目录即权威源）→ 跳过
+  if [[ "$LOCAL_MODE" -eq 1 && "$dst/SKILL.md" -ef "$SRC" ]]; then
     echo "[ok]   $k 权威源已就位（$dst/SKILL.md），无需复制"
     installed=$((installed+1))
     continue
   fi
-  mkdir -p "$(dirname "$dst")"
+
   mkdir -p "$dst"
   if [[ -f "$dst/SKILL.md" && "$FORCE" -eq 0 ]] && ! diff -q "$SRC" "$dst/SKILL.md" >/dev/null 2>&1; then
     echo "[skip] $k 已存在且与源不同，使用 --force 覆盖: $dst"
@@ -122,4 +176,8 @@ for k in "${selected[@]}"; do
 done
 
 echo "完成，共安装 $installed 个目标。"
-echo "提示：修改权威源 .trae/skills/$SKILL_NAME/SKILL.md 后，重新运行本脚本即可同步到各 IDE。"
+if [[ "$LOCAL_MODE" -eq 1 ]]; then
+  echo "提示：修改权威源 .trae/skills/$SKILL_NAME/SKILL.md 后，重新运行本脚本即可同步到各 IDE。"
+else
+  echo "提示：远程模式下已安装到用户全局目录，对所有项目生效。更新：重跑同一条远程命令即可。"
+fi

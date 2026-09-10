@@ -29,10 +29,25 @@ docs-site/
 
 ## AI Skill 一键安装
 
-让 AI 理解本项目的知识包，支持 Trae / Cursor / Claude Code / Cline / Continue / GitHub Copilot：
+让 AI 理解本项目的知识包，支持 Trae / Cursor / Claude Code / Cline / Continue / GitHub Copilot。
+
+**远程一键安装（无需克隆仓库）：**
 
 ```bash
-./scripts/install-skill.sh --all
+# Linux / macOS / Windows（Git Bash / WSL）
+curl -fsSL https://raw.githubusercontent.com/dmmdekkd/doc/main/scripts/install-skill.sh | bash -s -- --all
+```
+
+```powershell
+# Windows 原生 PowerShell
+irm https://raw.githubusercontent.com/dmmdekkd/doc/main/scripts/install-skill.ps1 | iex
+```
+
+**本地安装（已克隆仓库）：**
+
+```bash
+./scripts/install-skill.sh --all          # bash
+.\scripts\install-skill.ps1 -All          # PowerShell (Windows)
 ```
 
 详见文档站：[AI Skill 安装](/doc/guide/skill)。

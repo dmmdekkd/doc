@@ -21,7 +21,9 @@ description: 一键安装到 Trae / Cursor / Claude Code 等 IDE，让 AI 理解
 
 > VS Code 与 JetBrains 系列没有原生 skills 目录，安装对应的 Cline / Continue 插件后即可使用同一份 Skill。
 
-### 一键安装
+### 一键安装（本地模式）
+
+已克隆仓库时，直接运行仓库内脚本：
 
 ```bash
 ./scripts/install-skill.sh                  # 自动检测并安装到当前环境
@@ -31,7 +33,45 @@ description: 一键安装到 Trae / Cursor / Claude Code 等 IDE，让 AI 理解
 ./scripts/install-skill.sh --ide=trae --force        # 强制覆盖已存在的副本
 ```
 
-脚本以 `.trae/skills/jumpbyte-bot/SKILL.md` 为**唯一权威源**，向各 IDE 目录复制副本；修改 Skill 后重新运行脚本即可同步。
+Windows（PowerShell）：
+
+```powershell
+.\scripts\install-skill.ps1 -All
+.\scripts\install-skill.ps1 -Ide "trae,cursor"
+.\scripts\install-skill.ps1 -List
+```
+
+### 远程一键安装（无需克隆仓库）
+
+不需要克隆仓库，直接在终端执行一条命令即可安装到**用户全局目录**（对所有项目生效）。更新 Skill 时重跑同一条命令即可。
+
+**Linux / macOS / Windows（Git Bash / WSL）**：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dmmdekkd/doc/main/scripts/install-skill.sh | bash -s -- --all
+```
+
+只装指定 IDE：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dmmdekkd/doc/main/scripts/install-skill.sh | bash -s -- --ide=trae,cursor
+```
+
+**Windows 原生 PowerShell**：
+
+```powershell
+irm https://raw.githubusercontent.com/dmmdekkd/doc/main/scripts/install-skill.ps1 | iex
+```
+
+带参数（如只装 Trae 和 Cursor）：
+
+```powershell
+iex "& { $(irm https://raw.githubusercontent.com/dmmdekkd/doc/main/scripts/install-skill.ps1) } -Ide trae,cursor"
+```
+
+> 国内网络访问 `raw.githubusercontent.com` 不稳定时，可设置 `SKILL_RAW_URL` 指向镜像加速地址（bash / PowerShell 均支持）。
+
+脚本以 `.trae/skills/jumpbyte-bot/SKILL.md` 为**唯一权威源**：本地模式读取仓库内的权威源并复制到各 IDE 目录；远程模式自动从 GitHub 下载最新权威源后安装到用户全局目录。修改 Skill 后重新运行脚本即可同步。
 
 ### Skill 包含什么
 
