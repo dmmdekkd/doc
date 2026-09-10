@@ -5,3 +5,10 @@ docs/.vitepress/cache
 *.local
 .DS_Store
 logs
+
+# 各 IDE 的 Skill 副本由 scripts/install-skill.sh 生成，不入库
+.cursor/
+.claude/
+.cline/
+.continue/
+.github/skills/

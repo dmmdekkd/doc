@@ -14,16 +14,28 @@ docs-site/
 ├── docs/                      # 文档源文件（VitePress 根目录）
 │   ├── .vitepress/            # 站点配置（config、sidebar、theme）
 │   ├── index.md               # 首页
-│   ├── guide/                 # 指南：架构总览、收发流程等
+│   ├── guide/                 # 指南：架构总览、收发流程、AI Skill 安装等
 │   ├── protocols/             # 协议：WebSocket、字段定义
 │   ├── algorithms/            # 算法：sign / a_bogus(SM3+RC4) / 媒体加解密
 │   ├── api/                   # 接口说明
 │   └── modules/               # 源码模块：每包、每文件逐字节对齐的完整梳理
 ├── static-content/            # 静态资源（algorithms / api / guide / protocols）
+├── .trae/skills/              # AI Skill 权威源（jumpbyte-bot/SKILL.md）
+├── scripts/                   # 一键安装脚本（install-skill.sh）
 ├── .github/workflows/         # GitHub Actions：自动构建并部署到 Pages
 ├── package.json
 └── pnpm-lock.yaml
 ```
+
+## AI Skill 一键安装
+
+让 AI 理解本项目的知识包，支持 Trae / Cursor / Claude Code / Cline / Continue / GitHub Copilot：
+
+```bash
+./scripts/install-skill.sh --all
+```
+
+详见文档站：[AI Skill 安装](/doc/guide/skill)。
 
 ## 本地开发
 

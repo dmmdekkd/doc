@@ -29,6 +29,10 @@ export default [
       {
         "text": "自检与测试",
         "link": "/guide/testing"
+      },
+      {
+        "text": "AI Skill 安装",
+        "link": "/guide/skill"
       }
     ]
   },
